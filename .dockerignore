@@ -1,0 +1,27 @@
+.git
+.github
+.env
+.env.local
+.secrets
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+
+# 这些目录通常体积较大，且不应该进入镜像构建上下文
+node_modules
+data
+browser_data
+runtime
+dist
+build
+
+# 本地编辑器和测试缓存文件
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.idea
+.vscode

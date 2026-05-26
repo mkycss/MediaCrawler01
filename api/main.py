@@ -27,10 +27,13 @@ import subprocess
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
-from .routers import crawler_router, data_router, websocket_router
+import config
+from .routers import auth_router, crawler_router, data_router, websocket_router
+from .services import health_service, login_service
 
 app = FastAPI(
     title="MediaCrawler WebUI API",
@@ -56,9 +59,28 @@ app.add_middleware(
 )
 
 # Register routers
+app.include_router(auth_router, prefix="/api")
 app.include_router(crawler_router, prefix="/api")
 app.include_router(data_router, prefix="/api")
 app.include_router(websocket_router, prefix="/api")
+
+
+@app.on_event("startup")
+async def validate_login_on_startup():
+    """
+    可选的启动时登录态校验。
+
+    设计成可开关的原因：
+    - 生产无人值守环境通常希望“Cookie 一失效就让容器报错退出”；
+    - 本地开发则不一定每次都希望启动时访问知乎接口。
+    """
+    if not config.VALIDATE_ZHIHU_COOKIE_ON_START:
+        return
+
+    result = await login_service.validate_zhihu_cookie()
+    if not result.get("success"):
+        message = result.get("message", "知乎 Cookie 校验失败")
+        raise RuntimeError(f"[startup] {message}")
 
 
 @app.get("/")
@@ -77,7 +99,23 @@ async def serve_frontend():
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok"}
+    # 保留原有健康检查入口，但内部改为返回更完整的聚合摘要。
+    return await health_service.get_health_summary()
+
+
+@app.get("/api/health/liveness")
+async def health_liveness():
+    """存活检查：适合判断 API 进程是否还活着。"""
+    return await health_service.get_liveness()
+
+
+@app.get("/api/health/readiness")
+async def health_readiness():
+    """就绪检查：适合判断数据库、目录、Cookie 配置是否准备完成。"""
+    result = await health_service.get_readiness()
+    if result.get("status") != "ok":
+        return JSONResponse(status_code=503, content=result)
+    return result
 
 
 @app.get("/api/env/check")
@@ -184,4 +222,6 @@ if os.path.exists(WEBUI_DIR):
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    # 这里改为读取 config 中已经环境变量化的 APP_HOST / APP_PORT。
+    # 这样无论是本地运行还是容器运行，启动口都由同一套配置控制。
+    uvicorn.run(app, host=config.APP_HOST, port=config.APP_PORT)

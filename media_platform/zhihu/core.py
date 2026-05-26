@@ -20,7 +20,6 @@
 
 # -*- coding: utf-8 -*-
 import asyncio
-import os
 # import random  # Removed as we now use fixed config.CRAWLER_MAX_SLEEP_SEC intervals
 from asyncio import Task
 from typing import Dict, List, Optional, Tuple, cast
@@ -41,6 +40,7 @@ from proxy.proxy_ip_pool import IpInfoModel, create_ip_pool
 from store import zhihu as zhihu_store
 from tools import utils
 from tools.cdp_browser import CDPBrowserManager
+from tools.crawler_util import get_browser_persistent_dir
 from var import crawler_type_var, source_keyword_var
 
 from .client import ZhiHuClient
@@ -436,21 +436,42 @@ class ZhihuCrawler(AbstractCrawler):
         if config.SAVE_LOGIN_STATE:
             # feat issue #14
             # we will save login state to avoid login every time
-            user_data_dir = os.path.join(
-                os.getcwd(), "browser_data", config.USER_DATA_DIR % config.PLATFORM
-            )  # type: ignore
-            browser_context = await chromium.launch_persistent_context(
-                user_data_dir=user_data_dir,
-                accept_downloads=True,
-                headless=headless,
-                proxy=playwright_proxy,  # type: ignore
-                viewport={"width": 1920, "height": 1080},
-                user_agent=user_agent,
-                channel="chrome",  # Use system Chrome stable version
-            )
-            return browser_context
+            user_data_dir = get_browser_persistent_dir(config.PLATFORM)
+            launch_kwargs = {
+                "user_data_dir": user_data_dir,
+                "accept_downloads": True,
+                "headless": headless,
+                "proxy": playwright_proxy,  # type: ignore
+                "viewport": {"width": 1920, "height": 1080},
+                "user_agent": user_agent,
+            }
+            try:
+                return await chromium.launch_persistent_context(
+                    **launch_kwargs,
+                    channel="chrome",  # Prefer system Chrome when available.
+                )
+            except Exception as exc:
+                utils.logger.warning(
+                    f"[ZhihuCrawler.launch_browser] System Chrome is unavailable, "
+                    f"falling back to Playwright bundled Chromium: {exc}"
+                )
+                return await chromium.launch_persistent_context(**launch_kwargs)
         else:
-            browser = await chromium.launch(headless=headless, proxy=playwright_proxy, channel="chrome")  # type: ignore
+            try:
+                browser = await chromium.launch(
+                    headless=headless,
+                    proxy=playwright_proxy,
+                    channel="chrome",
+                )  # type: ignore
+            except Exception as exc:
+                utils.logger.warning(
+                    f"[ZhihuCrawler.launch_browser] System Chrome is unavailable, "
+                    f"falling back to Playwright bundled Chromium: {exc}"
+                )
+                browser = await chromium.launch(
+                    headless=headless,
+                    proxy=playwright_proxy,
+                )  # type: ignore
             browser_context = await browser.new_context(
                 viewport={"width": 1920, "height": 1080}, user_agent=user_agent
             )

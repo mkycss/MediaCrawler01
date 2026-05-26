@@ -22,7 +22,7 @@
 
 # Specify Zhihu user URL list
 ZHIHU_CREATOR_URL_LIST = [
-    "https://www.zhihu.com/people/yd1234567",
+    "https://www.zhihu.com/people/mr-dang-77",
     # ........................
 ]
 

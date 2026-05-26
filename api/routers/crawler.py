@@ -32,9 +32,25 @@ async def start_crawler(request: CrawlerStartRequest):
         # Handle concurrent/duplicate requests: if process is already running, return 400 instead of 500
         if crawler_manager.process and crawler_manager.process.poll() is None:
             raise HTTPException(status_code=400, detail="Crawler is already running")
-        raise HTTPException(status_code=500, detail="Failed to start crawler")
 
-    return {"status": "ok", "message": "Crawler started successfully"}
+        # Day 5：如果是登录前置校验失败，直接返回 400，并带上明确原因。
+        if crawler_manager.error_code == "login_validation_failed":
+            raise HTTPException(
+                status_code=400,
+                detail=crawler_manager.error_message or "登录校验失败，已阻止启动爬虫",
+            )
+
+        raise HTTPException(
+            status_code=500,
+            detail=crawler_manager.error_message or "Failed to start crawler",
+        )
+
+    # Day 6：启动成功时顺手返回一次状态快照，减少前端额外再调一次 /status。
+    return {
+        "status": "ok",
+        "message": "Crawler started successfully",
+        "crawler": crawler_manager.get_status(),
+    }
 
 
 @router.post("/stop")
@@ -47,7 +63,11 @@ async def stop_crawler():
             raise HTTPException(status_code=400, detail="No crawler is running")
         raise HTTPException(status_code=500, detail="Failed to stop crawler")
 
-    return {"status": "ok", "message": "Crawler stopped successfully"}
+    return {
+        "status": "ok",
+        "message": "Crawler stopped successfully",
+        "crawler": crawler_manager.get_status(),
+    }
 
 
 @router.get("/status", response_model=CrawlerStatusResponse)
@@ -60,4 +80,7 @@ async def get_crawler_status():
 async def get_logs(limit: int = 100):
     """Get recent logs"""
     logs = crawler_manager.logs[-limit:] if limit > 0 else crawler_manager.logs
-    return {"logs": [log.model_dump() for log in logs]}
+    return {
+        "count": len(logs),
+        "logs": [log.model_dump() for log in logs],
+    }

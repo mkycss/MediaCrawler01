@@ -17,14 +17,16 @@
 # 使用本代码即表示您同意遵守上述原则和LICENSE中的所有条款。
 
 import asyncio
-import subprocess
-import signal
 import os
-from typing import Optional, List
 from datetime import datetime
 from pathlib import Path
+import signal
+import subprocess
+from typing import List, Optional
 
+import config as app_config
 from ..schemas import CrawlerStartRequest, LogEntry
+from .login_service import login_service
 
 
 class CrawlerManager:
@@ -36,6 +38,8 @@ class CrawlerManager:
         self.status = "idle"
         self.started_at: Optional[datetime] = None
         self.current_config: Optional[CrawlerStartRequest] = None
+        self.error_message: Optional[str] = None
+        self.error_code: Optional[str] = None
         self._log_id = 0
         self._logs: List[LogEntry] = []
         self._read_task: Optional[asyncio.Task] = None
@@ -77,6 +81,52 @@ class CrawlerManager:
             except asyncio.QueueFull:
                 pass
 
+    def _clear_failure_state(self):
+        """开始新任务前，先清空上一次失败信息。"""
+        self.error_message = None
+        self.error_code = None
+
+    async def _set_failure_state(self, message: str, *, error_code: str = "unknown"):
+        """
+        统一记录失败状态。
+
+        这样做的好处是：
+        - 状态接口能看到明确错误原因；
+        - 日志里也会留下同一份错误消息；
+        - router 层可以根据 error_code 决定返回 400 还是 500。
+        """
+        self.status = "error"
+        self.error_message = message
+        self.error_code = error_code
+        entry = self._create_log_entry(message, "error")
+        await self._push_log(entry)
+
+    async def _precheck_login(self, config: CrawlerStartRequest) -> bool:
+        """
+        启动爬虫前的登录前置校验。
+
+        当前先实现知乎平台的 cookie 登录校验。
+        这是 Day 5 的核心：在真正启动子进程之前，就把明显无效的登录态拦下来。
+        """
+        if config.platform.value != "zhihu" or config.login_type.value != "cookie":
+            return True
+
+        cookie_str = config.cookies.strip() if config.cookies else app_config.COOKIES.strip()
+        cookie_source = "request" if config.cookies else app_config.COOKIE_SOURCE
+
+        result = await login_service.validate_zhihu_cookie(
+            cookie_str=cookie_str or None,
+            cookie_source=cookie_source,
+        )
+        if result.get("success"):
+            entry = self._create_log_entry("知乎登录校验通过，允许启动爬虫", "success")
+            await self._push_log(entry)
+            return True
+
+        message = result.get("message", "知乎登录校验失败")
+        await self._set_failure_state(f"启动前登录校验失败: {message}", error_code="login_validation_failed")
+        return False
+
     def _parse_log_level(self, line: str) -> str:
         """Parse log level"""
         line_upper = line.upper()
@@ -99,6 +149,7 @@ class CrawlerManager:
             # Clear old logs
             self._logs = []
             self._log_id = 0
+            self._clear_failure_state()
 
             # Clear pending queue (don't replace object to avoid WebSocket broadcast coroutine holding old queue reference)
             if self._log_queue is None:
@@ -109,6 +160,11 @@ class CrawlerManager:
                         self._log_queue.get_nowait()
                 except asyncio.QueueEmpty:
                     pass
+
+            # 这里先做登录前置校验，避免明知 Cookie 已失效还启动子进程空跑。
+            if not await self._precheck_login(config):
+                self.current_config = config
+                return False
 
             # Build command line arguments
             cmd = self._build_command(config)
@@ -145,9 +201,10 @@ class CrawlerManager:
 
                 return True
             except Exception as e:
-                self.status = "error"
-                entry = self._create_log_entry(f"Failed to start crawler: {str(e)}", "error")
-                await self._push_log(entry)
+                await self._set_failure_state(
+                    f"Failed to start crawler: {str(e)}",
+                    error_code="process_start_failed",
+                )
                 return False
 
     async def stop(self) -> bool:
@@ -184,6 +241,7 @@ class CrawlerManager:
 
             self.status = "idle"
             self.current_config = None
+            self._clear_failure_state()
 
             # Cancel log reading task
             if self._read_task:
@@ -199,7 +257,8 @@ class CrawlerManager:
             "platform": self.current_config.platform.value if self.current_config else None,
             "crawler_type": self.current_config.crawler_type.value if self.current_config else None,
             "started_at": self.started_at.isoformat() if self.started_at else None,
-            "error_message": None
+            "error_message": self.error_message,
+            "error_code": self.error_code,
         }
 
     def _build_command(self, config: CrawlerStartRequest) -> list:
@@ -266,16 +325,23 @@ class CrawlerManager:
                 exit_code = self.process.returncode if self.process else -1
                 if exit_code == 0:
                     entry = self._create_log_entry("Crawler completed successfully", "success")
+                    self.status = "idle"
+                    self.error_message = None
+                    self.error_code = None
                 else:
-                    entry = self._create_log_entry(f"Crawler exited with code: {exit_code}", "warning")
+                    self.status = "error"
+                    self.error_message = f"Crawler exited with code: {exit_code}"
+                    self.error_code = "process_runtime_failed"
+                    entry = self._create_log_entry(self.error_message, "error")
                 await self._push_log(entry)
-                self.status = "idle"
 
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            entry = self._create_log_entry(f"Error reading output: {str(e)}", "error")
-            await self._push_log(entry)
+            await self._set_failure_state(
+                f"Error reading output: {str(e)}",
+                error_code="log_read_failed",
+            )
 
 
 # Global singleton

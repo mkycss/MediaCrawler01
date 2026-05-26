@@ -23,7 +23,6 @@
 # @Desc    : Weibo crawler main workflow code
 
 import asyncio
-import os
 # import random  # Removed as we now use fixed config.CRAWLER_MAX_SLEEP_SEC intervals
 from asyncio import Task
 from typing import Dict, List, Optional, Tuple
@@ -42,6 +41,7 @@ from proxy.proxy_ip_pool import IpInfoModel, create_ip_pool
 from store import weibo as weibo_store
 from tools import utils
 from tools.cdp_browser import CDPBrowserManager
+from tools.crawler_util import get_browser_persistent_dir
 from var import crawler_type_var, source_keyword_var
 
 from .client import WeiboClient
@@ -368,7 +368,8 @@ class WeiboCrawler(AbstractCrawler):
         """Launch browser and create browser context"""
         utils.logger.info("[WeiboCrawler.launch_browser] Begin create browser context ...")
         if config.SAVE_LOGIN_STATE:
-            user_data_dir = os.path.join(os.getcwd(), "browser_data", config.USER_DATA_DIR % config.PLATFORM)  # type: ignore
+            # 统一使用公共目录，避免本地路径和容器路径规则不一致。
+            user_data_dir = get_browser_persistent_dir(config.PLATFORM)
             browser_context = await chromium.launch_persistent_context(
                 user_data_dir=user_data_dir,
                 accept_downloads=True,

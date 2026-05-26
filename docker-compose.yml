@@ -1,0 +1,83 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mediacrawler-mysql
+    restart: unless-stopped
+    environment:
+      # Day 2 开始，优先从 .env 读取；如果没有 .env，则回退到默认值。
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+      MYSQL_DATABASE: ${MYSQL_DB_NAME:-media_crawler}
+      TZ: ${TZ:-Asia/Shanghai}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p${MYSQL_ROOT_PASSWORD:-123456} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mediacrawler-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-8080}:${APP_PORT:-8080}"
+    environment:
+      # API 服务监听地址
+      APP_HOST: ${APP_HOST:-0.0.0.0}
+      APP_PORT: ${APP_PORT:-8080}
+
+      # 数据库连接配置
+      MYSQL_DB_HOST: ${MYSQL_DB_HOST:-mysql}
+      MYSQL_DB_PORT: ${MYSQL_DB_PORT:-3306}
+      MYSQL_DB_USER: ${MYSQL_DB_USER:-root}
+      MYSQL_DB_PWD: ${MYSQL_DB_PWD:-123456}
+      MYSQL_DB_NAME: ${MYSQL_DB_NAME:-media_crawler}
+      MYSQL_WAIT_TIMEOUT: ${MYSQL_WAIT_TIMEOUT:-60}
+      INIT_DB_ON_START: ${INIT_DB_ON_START:-true}
+
+      # 爬虫核心运行配置
+      PLATFORM: ${PLATFORM:-xhs}
+      KEYWORDS: ${KEYWORDS:-编程副业,编程兼职}
+      LOGIN_TYPE: ${LOGIN_TYPE:-cookie}
+      CRAWLER_TYPE: ${CRAWLER_TYPE:-search}
+      SAVE_DATA_OPTION: ${SAVE_DATA_OPTION:-db}
+      SAVE_DATA_PATH: ${SAVE_DATA_PATH:-/app/data}
+      SAVE_LOGIN_STATE: ${SAVE_LOGIN_STATE:-true}
+      BROWSER_DATA_ROOT: ${BROWSER_DATA_ROOT:-/app/browser_data}
+      COOKIE_FILE: ${COOKIE_FILE:-}
+      HEADLESS: ${HEADLESS:-true}
+      ENABLE_CDP_MODE: ${ENABLE_CDP_MODE:-false}
+      ENABLE_GET_COMMENTS: ${ENABLE_GET_COMMENTS:-true}
+      ENABLE_GET_SUB_COMMENTS: ${ENABLE_GET_SUB_COMMENTS:-false}
+      MAX_CONCURRENCY_NUM: ${MAX_CONCURRENCY_NUM:-1}
+      VALIDATE_ZHIHU_COOKIE_ON_START: ${VALIDATE_ZHIHU_COOKIE_ON_START:-false}
+    volumes:
+      # app_data: 预留给日志、导出文件、临时文件使用
+      - app_data:/app/data
+      # browser_data: 预留给后续 Playwright 登录态持久化使用
+      - browser_data:/app/browser_data
+      # 这里约定把本地 secrets 目录只读挂到容器里，用于放 Cookie 文件。
+      - ./.secrets:/run/secrets:ro
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:${APP_PORT:-8080}/api/health/readiness', timeout=5)\""
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mysql_data:
+  app_data:
+  browser_data:

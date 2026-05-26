@@ -80,6 +80,7 @@ class CrawlerStatusResponse(BaseModel):
     crawler_type: Optional[str] = None
     started_at: Optional[str] = None
     error_message: Optional[str] = None
+    error_code: Optional[str] = None
 
 
 class LogEntry(BaseModel):

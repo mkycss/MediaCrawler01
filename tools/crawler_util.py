@@ -25,6 +25,7 @@
 
 import base64
 import json
+import os
 import random
 import re
 import urllib
@@ -36,6 +37,7 @@ import httpx
 from PIL import Image, ImageDraw, ImageShow
 from playwright.async_api import BrowserContext, Cookie, Page
 
+import config
 from . import utils
 from .httpx_util import make_async_client
 
@@ -164,14 +166,30 @@ def convert_str_cookie_to_dict(cookie_str: str) -> Dict:
         cookie = cookie.strip()
         if not cookie:
             continue
-        cookie_list = cookie.split("=")
-        if len(cookie_list) != 2:
+        if "=" not in cookie:
             continue
-        cookie_value = cookie_list[1]
-        if isinstance(cookie_value, list):
-            cookie_value = "".join(cookie_value)
-        cookie_dict[cookie_list[0]] = cookie_value
+        cookie_key, cookie_value = cookie.split("=", 1)
+        cookie_dict[cookie_key] = cookie_value
     return cookie_dict
+
+
+def get_browser_persistent_dir(platform: str, *, cdp_mode: bool = False) -> str:
+    """
+    统一生成浏览器持久化目录。
+
+    设计目标：
+    1. 所有平台都使用同一套目录规则，避免每个平台各自拼路径。
+    2. 容器环境下默认落到 BROWSER_DATA_ROOT，对应 docker volume。
+    3. cdp_mode 与普通 playwright 模式目录分开，避免互相污染。
+    """
+    base_dir = config.BROWSER_DATA_ROOT
+    dir_name = config.USER_DATA_DIR % platform
+    if cdp_mode:
+        dir_name = f"cdp_{dir_name}"
+
+    target_dir = os.path.join(base_dir, dir_name)
+    os.makedirs(target_dir, exist_ok=True)
+    return target_dir
 
 
 def match_interact_info_count(count_str: str) -> int:

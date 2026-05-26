@@ -18,7 +18,6 @@
 # 使用本代码即表示您同意遵守上述原则和LICENSE中的所有条款。
 
 import asyncio
-import os
 import random
 from asyncio import Task
 from typing import Any, Dict, List, Optional, Tuple
@@ -37,6 +36,7 @@ from proxy.proxy_ip_pool import IpInfoModel, create_ip_pool
 from store import douyin as douyin_store
 from tools import utils
 from tools.cdp_browser import CDPBrowserManager
+from tools.crawler_util import get_browser_persistent_dir
 from var import crawler_type_var, source_keyword_var
 
 from .client import DouYinClient
@@ -337,7 +337,8 @@ class DouYinCrawler(AbstractCrawler):
     ) -> BrowserContext:
         """Launch browser and create browser context"""
         if config.SAVE_LOGIN_STATE:
-            user_data_dir = os.path.join(os.getcwd(), "browser_data", config.USER_DATA_DIR % config.PLATFORM)  # type: ignore
+            # 统一使用公共目录生成函数，避免各平台各自拼接路径。
+            user_data_dir = get_browser_persistent_dir(config.PLATFORM)
             browser_context = await chromium.launch_persistent_context(
                 user_data_dir=user_data_dir,
                 accept_downloads=True,

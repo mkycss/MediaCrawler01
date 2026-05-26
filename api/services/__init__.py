@@ -17,5 +17,14 @@
 # 使用本代码即表示您同意遵守上述原则和LICENSE中的所有条款。
 
 from .crawler_manager import CrawlerManager, crawler_manager
+from .health_service import HealthService, health_service
+from .login_service import LoginService, login_service
 
-__all__ = ["CrawlerManager", "crawler_manager"]
+__all__ = [
+    "CrawlerManager",
+    "crawler_manager",
+    "HealthService",
+    "health_service",
+    "LoginService",
+    "login_service",
+]

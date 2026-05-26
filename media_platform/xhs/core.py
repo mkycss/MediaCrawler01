@@ -18,7 +18,6 @@
 # 使用本代码即表示您同意遵守上述原则和LICENSE中的所有条款。
 
 import asyncio
-import os
 import random
 from asyncio import Task
 from typing import Dict, List, Optional
@@ -39,6 +38,7 @@ from proxy.proxy_ip_pool import IpInfoModel, create_ip_pool
 from store import xhs as xhs_store
 from tools import utils
 from tools.cdp_browser import CDPBrowserManager
+from tools.crawler_util import get_browser_persistent_dir
 from var import crawler_type_var, source_keyword_var
 
 from .client import XiaoHongShuClient
@@ -402,7 +402,8 @@ class XiaoHongShuCrawler(AbstractCrawler):
         if config.SAVE_LOGIN_STATE:
             # feat issue #14
             # we will save login state to avoid login every time
-            user_data_dir = os.path.join(os.getcwd(), "browser_data", config.USER_DATA_DIR % config.PLATFORM)  # type: ignore
+            # 这里统一走公共函数，保证所有平台都落到同一个持久化根目录下。
+            user_data_dir = get_browser_persistent_dir(config.PLATFORM)
             browser_context = await chromium.launch_persistent_context(
                 user_data_dir=user_data_dir,
                 accept_downloads=True,

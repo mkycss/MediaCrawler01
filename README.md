@@ -307,6 +307,9 @@ LegionProxy 专为账号注册与自动化场景提供住宅代理网络，覆�
 
 ## 📚 其他
 - **常见问题**：[MediaCrawler 完整文档](https://nanmicoder.github.io/MediaCrawler/)
+- **Docker + MySQL 部署指南**：[docs/docker_mysql_deploy.md](docs/docker_mysql_deploy.md)
+- **故障恢复 SOP**：[docs/故障恢复SOP.md](docs/故障恢复SOP.md)
+- **回归验证清单**：[docs/回归验证清单.md](docs/回归验证清单.md)
 - **爬虫入门教程**：[CrawlerTutorial 免费教程](https://github.com/NanmiCoder/CrawlerTutorial)
 - **新闻爬虫开源项目**：[NewsCrawlerCollection](https://github.com/NanmiCoder/NewsCrawlerCollection)
 
