@@ -188,6 +188,9 @@ class XiaoHongShuCrawler(AbstractCrawler):
     async def get_creators_and_notes(self) -> None:
         """Get creator's notes and retrieve their comment information."""
         utils.logger.info("[XiaoHongShuCrawler.get_creators_and_notes] Begin get Xiaohongshu creators")
+        utils.logger.info(
+            f"[XiaoHongShuCrawler.get_creators_and_notes] creator_max_notes_count={config.CREATOR_MAX_NOTES_COUNT}"
+        )
         for creator_url in config.XHS_CREATOR_ID_LIST:
             try:
                 # Parse creator URL to get user_id and security tokens

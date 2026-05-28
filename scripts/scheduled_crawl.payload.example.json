@@ -1,0 +1,15 @@
+{
+  "platform": "xhs",
+  "login_type": "cookie",
+  "crawler_type": "search",
+  "keywords": "新能源车",
+  "specified_ids": "",
+  "creator_ids": "",
+  "creator_max_notes_count": 0,
+  "start_page": 1,
+  "enable_comments": true,
+  "enable_sub_comments": false,
+  "save_option": "jsonl",
+  "cookies": "",
+  "headless": true
+}

@@ -1,0 +1,10 @@
+{
+  "platform": "zhihu",
+  "login_type": "cookie",
+  "crawler_type": "creator",
+  "creator_max_notes_count": 10,
+  "enable_comments": false,
+  "enable_sub_comments": false,
+  "save_option": "db",
+  "headless": true
+}

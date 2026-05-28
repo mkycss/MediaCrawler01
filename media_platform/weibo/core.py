@@ -307,6 +307,9 @@ class WeiboCrawler(AbstractCrawler):
 
         """
         utils.logger.info("[WeiboCrawler.get_creators_and_notes] Begin get weibo creators")
+        utils.logger.info(
+            f"[WeiboCrawler.get_creators_and_notes] creator_max_notes_count={config.CREATOR_MAX_NOTES_COUNT}"
+        )
         for user_id in config.WEIBO_CREATOR_ID_LIST:
             createor_info_res: Dict = await self.wb_client.get_creator_info_by_id(creator_id=user_id)
             if createor_info_res:

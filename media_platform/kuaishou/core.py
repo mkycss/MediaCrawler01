@@ -396,6 +396,9 @@ class KuaishouCrawler(AbstractCrawler):
         utils.logger.info(
             "[KuaiShouCrawler.get_creators_and_videos] Begin get kuaishou creators"
         )
+        utils.logger.info(
+            f"[KuaiShouCrawler.get_creators_and_videos] creator_max_notes_count={config.CREATOR_MAX_NOTES_COUNT}"
+        )
         for creator_url in config.KS_CREATOR_ID_LIST:
             try:
                 # Parse creator URL to get user_id

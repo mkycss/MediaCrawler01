@@ -1,0 +1,22 @@
+SHELL=/bin/bash
+PATH=/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin
+
+# 先复制一份请求体示例并按需修改：
+# cp /path/to/MediaCrawler01/scripts/scheduled_crawl.payload.example.json \
+#    /path/to/MediaCrawler01/scripts/scheduled_crawl.payload.json
+#
+# 手动编辑 crontab:
+# crontab -e
+#
+# 查看当前 crontab:
+# crontab -l
+
+PROJECT_ROOT=/Users/monkey/Projects/demos/MediaCrawler01
+API_BASE_URL=http://127.0.0.1:8080
+PAYLOAD_FILE=${PROJECT_ROOT}/scripts/scheduled_crawl.payload.json
+
+# 每天早上 9 点执行一次
+0 9 * * * API_BASE_URL="${API_BASE_URL}" PAYLOAD_FILE="${PAYLOAD_FILE}" "${PROJECT_ROOT}/scripts/run_scheduled_crawl.sh"
+
+# 每 30 分钟执行一次
+# */30 * * * * API_BASE_URL="${API_BASE_URL}" PAYLOAD_FILE="${PAYLOAD_FILE}" "${PROJECT_ROOT}/scripts/run_scheduled_crawl.sh"

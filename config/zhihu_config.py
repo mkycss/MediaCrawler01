@@ -23,6 +23,20 @@
 # Specify Zhihu user URL list
 ZHIHU_CREATOR_URL_LIST = [
     "https://www.zhihu.com/people/mr-dang-77",
+    "https://www.zhihu.com/people/33-90-39-84",
+    "https://www.zhihu.com/people/36-14-82-21",
+    "https://www.zhihu.com/people/song-wei-hao-34",
+    "https://www.zhihu.com/people/yqzrjs",
+    "https://www.zhihu.com/people/zhi-zhu-ka-pei",
+    "https://www.zhihu.com/people/binso18502020560",
+    "https://www.zhihu.com/people/alex-11-66-58",
+    "https://www.zhihu.com/people/deng-cheng-chen-17",
+    "https://www.zhihu.com/people/long-kai-28-72",
+    "https://www.zhihu.com/people/shui-mo-41-19",
+    "https://www.zhihu.com/people/niu-mao-shu-ju",
+    "https://www.zhihu.com/people/xu-ze-qiu",
+    "https://www.zhihu.com/people/xiao-peng-61-47",
+    "https://www.zhihu.com/people/53-72-17-28-41"
     # ........................
 ]
 

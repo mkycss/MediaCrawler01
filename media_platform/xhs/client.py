@@ -615,7 +615,11 @@ class XiaoHongShuClient(AbstractApiClient, ProxyRefreshMixin):
         result = []
         notes_has_more = True
         notes_cursor = ""
-        while notes_has_more and len(result) < config.CRAWLER_MAX_NOTES_COUNT:
+        # creator 模式专用的作品数量限制：
+        # - 0 表示全量抓取
+        # - >0 表示每个 creator 最多抓前 N 条
+        limit = config.CREATOR_MAX_NOTES_COUNT
+        while notes_has_more:
             notes_res = await self.get_notes_by_creator(
                 user_id, notes_cursor, xsec_token=xsec_token, xsec_source=xsec_source
             )
@@ -638,15 +642,23 @@ class XiaoHongShuClient(AbstractApiClient, ProxyRefreshMixin):
                 f"[XiaoHongShuClient.get_all_notes_by_creator] got user_id:{user_id} notes len : {len(notes)}"
             )
 
-            remaining = config.CRAWLER_MAX_NOTES_COUNT - len(result)
-            if remaining <= 0:
-                break
+            if limit > 0:
+                # 这里要在 callback 之前先截断，
+                # 避免后续详情抓取和存储写入超过 N 的数据。
+                remaining = limit - len(result)
+                if remaining <= 0:
+                    break
+                notes = notes[:remaining]
 
-            notes_to_add = notes[:remaining]
             if callback:
-                await callback(notes_to_add)
+                await callback(notes)
 
-            result.extend(notes_to_add)
+            result.extend(notes)
+            if limit > 0 and len(result) >= limit:
+                utils.logger.info(
+                    f"[XiaoHongShuClient.get_all_notes_by_creator] Reached creator limit for {user_id}: {limit}"
+                )
+                break
             await asyncio.sleep(crawl_interval)
 
         utils.logger.info(

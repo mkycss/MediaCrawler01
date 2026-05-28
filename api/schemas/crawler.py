@@ -18,7 +18,7 @@
 
 from enum import Enum
 from typing import Optional, Literal
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class PlatformEnum(str, Enum):
@@ -65,6 +65,9 @@ class CrawlerStartRequest(BaseModel):
     keywords: str = ""  # Keywords for search mode
     specified_ids: str = ""  # Post/video ID list for detail mode, comma-separated
     creator_ids: str = ""  # Creator ID list for creator mode, comma-separated
+    # creator 模式下每个 creator 最多抓取多少条作品。
+    # 0 表示全量抓取；这里先只负责“定义参数”，Day 2/3 再让各平台真正用起来。
+    creator_max_notes_count: int = Field(default=0, ge=0)
     start_page: int = 1
     enable_comments: bool = True
     enable_sub_comments: bool = False

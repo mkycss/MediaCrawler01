@@ -267,6 +267,15 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
                 rich_help_panel="Basic Configuration",
             ),
         ] = "",
+        creator_max_notes_count: Annotated[
+            int,
+            typer.Option(
+                "--creator_max_notes_count",
+                min=0,
+                help="Maximum number of works to crawl for each creator in creator mode, 0 means crawl all",
+                rich_help_panel="Basic Configuration",
+            ),
+        ] = config.CREATOR_MAX_NOTES_COUNT,
         max_comments_count_singlenotes: Annotated[
             int,
             typer.Option(
@@ -341,6 +350,9 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
         config.CDP_HEADLESS = enable_headless
         config.SAVE_DATA_OPTION = save_data_option.value
         config.COOKIES = cookies
+        # 这里先只把 creator 模式的“每个作者抓取条数”写回全局配置，
+        # 后续 Day 2/3 再由各平台的 creator 抓取逻辑真正消费这个值。
+        config.CREATOR_MAX_NOTES_COUNT = creator_max_notes_count
         config.CRAWLER_MAX_COMMENTS_COUNT_SINGLENOTES = max_comments_count_singlenotes
         config.MAX_CONCURRENCY_NUM = max_concurrency_num
         config.SAVE_DATA_PATH = save_data_path
@@ -395,6 +407,7 @@ async def parse_cmd(argv: Optional[Sequence[str]] = None):
             cookies=config.COOKIES,
             specified_id=specified_id,
             creator_id=creator_id,
+            creator_max_notes_count=config.CREATOR_MAX_NOTES_COUNT,
         )
 
     command = typer.main.get_command(app)

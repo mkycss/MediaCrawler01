@@ -474,6 +474,7 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
         is_end: bool = False
         offset: int = 0
         limit: int = 20
+        creator_limit = config.CREATOR_MAX_NOTES_COUNT
         while not is_end:
             res = await self.get_creator_answers(creator.url_token, offset, limit)
             if not res:
@@ -482,9 +483,20 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
             paging_info = res.get("paging", {})
             is_end = paging_info.get("is_end")
             contents = self._extractor.extract_content_list_from_creator(res.get("data"))
+            if creator_limit > 0:
+                # 这里在 callback 之前先截断，避免写入超过 N 的内容。
+                remaining = creator_limit - len(all_contents)
+                if remaining <= 0:
+                    break
+                contents = contents[:remaining]
             if callback:
                 await callback(contents)
             all_contents.extend(contents)
+            if creator_limit > 0 and len(all_contents) >= creator_limit:
+                utils.logger.info(
+                    f"[ZhiHuClient.get_all_anwser_by_creator] Reached creator limit for {creator.url_token}: {creator_limit}"
+                )
+                break
             offset += limit
             await asyncio.sleep(crawl_interval)
         return all_contents
@@ -509,6 +521,7 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
         is_end: bool = False
         offset: int = 0
         limit: int = 20
+        creator_limit = config.CREATOR_MAX_NOTES_COUNT
         while not is_end:
             res = await self.get_creator_articles(creator.url_token, offset, limit)
             if not res:
@@ -516,9 +529,19 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
             paging_info = res.get("paging", {})
             is_end = paging_info.get("is_end")
             contents = self._extractor.extract_content_list_from_creator(res.get("data"))
+            if creator_limit > 0:
+                remaining = creator_limit - len(all_contents)
+                if remaining <= 0:
+                    break
+                contents = contents[:remaining]
             if callback:
                 await callback(contents)
             all_contents.extend(contents)
+            if creator_limit > 0 and len(all_contents) >= creator_limit:
+                utils.logger.info(
+                    f"[ZhiHuClient.get_all_articles_by_creator] Reached creator limit for {creator.url_token}: {creator_limit}"
+                )
+                break
             offset += limit
             await asyncio.sleep(crawl_interval)
         return all_contents
@@ -543,6 +566,7 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
         is_end: bool = False
         offset: int = 0
         limit: int = 20
+        creator_limit = config.CREATOR_MAX_NOTES_COUNT
         while not is_end:
             res = await self.get_creator_videos(creator.url_token, offset, limit)
             if not res:
@@ -550,9 +574,19 @@ class ZhiHuClient(AbstractApiClient, ProxyRefreshMixin):
             paging_info = res.get("paging", {})
             is_end = paging_info.get("is_end")
             contents = self._extractor.extract_content_list_from_creator(res.get("data"))
+            if creator_limit > 0:
+                remaining = creator_limit - len(all_contents)
+                if remaining <= 0:
+                    break
+                contents = contents[:remaining]
             if callback:
                 await callback(contents)
             all_contents.extend(contents)
+            if creator_limit > 0 and len(all_contents) >= creator_limit:
+                utils.logger.info(
+                    f"[ZhiHuClient.get_all_videos_by_creator] Reached creator limit for {creator.url_token}: {creator_limit}"
+                )
+                break
             offset += limit
             await asyncio.sleep(crawl_interval)
         return all_contents

@@ -140,6 +140,25 @@ class CrawlerManager:
             return "debug"
         return "info"
 
+    def _decode_output_bytes(self, data: bytes) -> str:
+        """Decode subprocess output bytes without failing on invalid UTF-8."""
+        if not data:
+            return ""
+        return data.decode("utf-8", errors="replace")
+
+    async def _append_output_text(self, text: str):
+        """Parse decoded output text into log entries."""
+        if not text:
+            return
+
+        for raw_line in text.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            level = self._parse_log_level(line)
+            entry = self._create_log_entry(line, level)
+            await self._push_log(entry)
+
     async def start(self, config: CrawlerStartRequest) -> bool:
         """Start crawler process"""
         async with self._lock:
@@ -179,9 +198,7 @@ class CrawlerManager:
                     cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
-                    text=True,
-                    encoding='utf-8',
-                    bufsize=1,
+                    bufsize=0,
                     cwd=str(self._project_root),
                     env={**os.environ, "PYTHONUNBUFFERED": "1"}
                 )
@@ -275,8 +292,12 @@ class CrawlerManager:
             cmd.extend(["--keywords", config.keywords])
         elif config.crawler_type.value == "detail" and config.specified_ids:
             cmd.extend(["--specified_id", config.specified_ids])
-        elif config.crawler_type.value == "creator" and config.creator_ids:
-            cmd.extend(["--creator_id", config.creator_ids])
+        elif config.crawler_type.value == "creator":
+            if config.creator_ids:
+                cmd.extend(["--creator_id", config.creator_ids])
+            # creator 模式下，无论 creator_id 是否由请求显式传入，
+            # 都需要把限量参数透传给子进程；否则会退回全局默认值 0（全量抓取）。
+            cmd.extend(["--creator_max_notes_count", str(config.creator_max_notes_count)])
 
         if config.start_page != 1:
             cmd.extend(["--start", str(config.start_page)])
@@ -296,17 +317,13 @@ class CrawlerManager:
         loop = asyncio.get_event_loop()
 
         try:
-            while self.process and self.process.poll() is None:
+            while self.process and self.process.poll() is None and self.process.stdout:
                 # Read a line in thread pool
-                line = await loop.run_in_executor(
+                line_bytes = await loop.run_in_executor(
                     None, self.process.stdout.readline
                 )
-                if line:
-                    line = line.strip()
-                    if line:
-                        level = self._parse_log_level(line)
-                        entry = self._create_log_entry(line, level)
-                        await self._push_log(entry)
+                if line_bytes:
+                    await self._append_output_text(self._decode_output_bytes(line_bytes))
 
             # Read remaining output
             if self.process and self.process.stdout:
@@ -314,11 +331,7 @@ class CrawlerManager:
                     None, self.process.stdout.read
                 )
                 if remaining:
-                    for line in remaining.strip().split('\n'):
-                        if line.strip():
-                            level = self._parse_log_level(line)
-                            entry = self._create_log_entry(line.strip(), level)
-                            await self._push_log(entry)
+                    await self._append_output_text(self._decode_output_bytes(remaining))
 
             # Process ended
             if self.status == "running":

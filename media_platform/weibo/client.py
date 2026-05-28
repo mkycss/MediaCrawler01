@@ -391,6 +391,10 @@ class WeiboClient(ProxyRefreshMixin):
         notes_has_more = True
         since_id = ""
         crawler_total_count = 0
+        # creator 模式专用的作品数量限制：
+        # - 0 表示不限制，继续沿用原来的全量分页逻辑
+        # - >0 表示每个 creator 最多只抓前 N 条作品
+        limit = config.CREATOR_MAX_NOTES_COUNT
         while notes_has_more:
             notes_res = await self.get_notes_by_creator(creator_id, container_id, since_id)
             if not notes_res:
@@ -404,10 +408,23 @@ class WeiboClient(ProxyRefreshMixin):
             notes = notes_res["cards"]
             utils.logger.info(f"[WeiboClient.get_all_notes_by_creator] got user_id:{creator_id} notes len : {len(notes)}")
             notes = [note for note in notes if note.get("card_type") == 9]
+            if limit > 0:
+                # 这里要在 callback 之前先截断，
+                # 这样可以保证存储层不会写入超过 N 的数据。
+                remaining = limit - len(result)
+                if remaining <= 0:
+                    break
+                notes = notes[:remaining]
+
             if callback:
                 await callback(notes)
             await asyncio.sleep(crawl_interval)
             result.extend(notes)
+            if limit > 0 and len(result) >= limit:
+                utils.logger.info(
+                    f"[WeiboClient.get_all_notes_by_creator] Reached creator limit for {creator_id}: {limit}"
+                )
+                break
             crawler_total_count += 10
             notes_has_more = notes_res.get("cardlistInfo", {}).get("total", 0) > crawler_total_count
         return result

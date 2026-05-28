@@ -273,6 +273,9 @@ class DouYinCrawler(AbstractCrawler):
         """
         utils.logger.info("[DouYinCrawler.get_creators_and_videos] Begin get douyin creators")
         utils.logger.info("[DouYinCrawler.get_creators_and_videos] Parsing creator URLs...")
+        utils.logger.info(
+            f"[DouYinCrawler.get_creators_and_videos] creator_max_notes_count={config.CREATOR_MAX_NOTES_COUNT}"
+        )
 
         for creator_url in config.DY_CREATOR_ID_LIST:
             try:

@@ -258,6 +258,9 @@ class ZhihuCrawler(AbstractCrawler):
         utils.logger.info(
             "[ZhihuCrawler.get_creators_and_notes] Begin get xiaohongshu creators"
         )
+        utils.logger.info(
+            f"[ZhihuCrawler.get_creators_and_notes] creator_max_notes_count={config.CREATOR_MAX_NOTES_COUNT}"
+        )
         for user_link in config.ZHIHU_CREATOR_URL_LIST:
             utils.logger.info(
                 f"[ZhihuCrawler.get_creators_and_notes] Begin get creator {user_link}"

@@ -334,6 +334,10 @@ class KuaiShouClient(AbstractApiClient, ProxyRefreshMixin):
         """
         result = []
         pcursor = ""
+        # creator 模式专用的作品数量限制：
+        # - 0 表示全量抓取
+        # - >0 表示每个 creator 最多抓前 N 条
+        limit = config.CREATOR_MAX_NOTES_COUNT
 
         while pcursor != "no_more":
             videos_res = await self.get_video_by_creater(user_id, pcursor)
@@ -351,8 +355,20 @@ class KuaiShouClient(AbstractApiClient, ProxyRefreshMixin):
                 f"[KuaiShouClient.get_all_videos_by_creator] got user_id:{user_id} videos len : {len(videos)}"
             )
 
+            if limit > 0:
+                # 这里在 callback 之前先截断，保证详情抓取和存储不会超出 N。
+                remaining = limit - len(result)
+                if remaining <= 0:
+                    break
+                videos = videos[:remaining]
+
             if callback:
                 await callback(videos)
             await asyncio.sleep(crawl_interval)
             result.extend(videos)
+            if limit > 0 and len(result) >= limit:
+                utils.logger.info(
+                    f"[KuaiShouClient.get_all_videos_by_creator] Reached creator limit for {user_id}: {limit}"
+                )
+                break
         return result

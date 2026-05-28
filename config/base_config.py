@@ -166,6 +166,13 @@ START_PAGE = _get_env_int("START_PAGE", 1)
 # Control the number of crawled videos/posts
 CRAWLER_MAX_NOTES_COUNT = _get_env_int("CRAWLER_MAX_NOTES_COUNT", 15)
 
+# creator 模式下“每个 creator 最多抓取多少条作品”。
+# 这里故意和 CRAWLER_MAX_NOTES_COUNT 分开，避免和 search 模式的数量配置混用。
+# 约定：
+# - 0 表示全量抓取
+# - >0 表示每个 creator 只抓前 N 条
+CREATOR_MAX_NOTES_COUNT = _get_env_int("CREATOR_MAX_NOTES_COUNT", 0)
+
 # Controlling the number of concurrent crawlers
 MAX_CONCURRENCY_NUM = _get_env_int("MAX_CONCURRENCY_NUM", 1)
 

@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Union, Optional
 import httpx
 from playwright.async_api import BrowserContext
 
+import config
 from base.base_crawler import AbstractApiClient
 from proxy.proxy_mixin import ProxyRefreshMixin
 from tools import utils
@@ -335,15 +336,30 @@ class DouYinClient(AbstractApiClient, ProxyRefreshMixin):
         posts_has_more = 1
         max_cursor = ""
         result = []
+        # creator 模式专用的作品数量限制：
+        # - 0 表示全量抓取
+        # - >0 表示每个 creator 最多抓前 N 条
+        limit = config.CREATOR_MAX_NOTES_COUNT
         while posts_has_more == 1:
             aweme_post_res = await self.get_user_aweme_posts(sec_user_id, max_cursor)
             posts_has_more = aweme_post_res.get("has_more", 0)
             max_cursor = aweme_post_res.get("max_cursor")
             aweme_list = aweme_post_res.get("aweme_list") if aweme_post_res.get("aweme_list") else []
             utils.logger.info(f"[DouYinClient.get_all_user_aweme_posts] get sec_user_id:{sec_user_id} video len : {len(aweme_list)}")
+            if limit > 0:
+                # 这里在 callback 之前先截断，避免后面的详情抓取和存储超出 N。
+                remaining = limit - len(result)
+                if remaining <= 0:
+                    break
+                aweme_list = aweme_list[:remaining]
             if callback:
                 await callback(aweme_list)
             result.extend(aweme_list)
+            if limit > 0 and len(result) >= limit:
+                utils.logger.info(
+                    f"[DouYinClient.get_all_user_aweme_posts] Reached creator limit for {sec_user_id}: {limit}"
+                )
+                break
         return result
 
     async def get_aweme_media(self, url: str) -> Union[bytes, None]:

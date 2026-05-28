@@ -67,6 +67,7 @@ PLATFORM=zhihu
 LOGIN_TYPE=cookie
 CRAWLER_TYPE=search
 SAVE_DATA_OPTION=db
+CREATOR_MAX_NOTES_COUNT=0
 
 HEADLESS=true
 SAVE_LOGIN_STATE=true
@@ -82,6 +83,7 @@ VALIDATE_ZHIHU_COOKIE_ON_START=false
 - `PLATFORM=zhihu`：当前 Day 4/Day 5 登录校验以知乎为基准实现
 - `LOGIN_TYPE=cookie`：无人值守场景推荐固定使用 cookie 登录
 - `SAVE_DATA_OPTION=db`：表示写入 MySQL
+- `CREATOR_MAX_NOTES_COUNT=0`：仅 creator 模式生效，`0` 表示全量，`>0` 表示每个 creator 只抓前 N 条作品
 - `COOKIE_FILE`：指向容器内的 Cookie 文件路径
 
 ## 4. 准备 Cookie 文件
@@ -196,6 +198,32 @@ curl -X POST http://127.0.0.1:8080/api/crawler/start \
     "enable_sub_comments": false
   }'
 ```
+
+### 7.1.1 启动 creator 限量抓取任务
+
+如果你希望在 `creator` 模式下，只抓每个 creator 的前 `N` 条作品，可以传 `creator_max_notes_count`：
+
+```bash
+curl -X POST http://127.0.0.1:8080/api/crawler/start \
+  -H "Content-Type: application/json" \
+  -d '{
+    "platform": "zhihu",
+    "login_type": "cookie",
+    "crawler_type": "creator",
+    "creator_ids": "https://www.zhihu.com/people/xxx",
+    "creator_max_notes_count": 10,
+    "save_option": "db",
+    "headless": true,
+    "enable_comments": true,
+    "enable_sub_comments": false
+  }'
+```
+
+说明：
+
+- `creator_max_notes_count=10`：表示每个 creator 只抓前 10 条作品
+- `creator_max_notes_count=0`：表示全量抓取
+- 该参数只在 `crawler_type=creator` 时生效，不影响 `search` 和 `detail`
 
 ### 7.2 查看爬虫状态
 
